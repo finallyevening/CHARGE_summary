@@ -29,6 +29,7 @@ knitr::knit_hooks$set(inline = function(x) {
 
 ```{r Loading packages, echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
 library(anytime)
+library(arrow)
 
 library(cowplot)
 library(corrplot)
@@ -47,6 +48,7 @@ library(gghighlight)
 library(gridExtra)
 library(gt)
 library(ggtext)
+library(Hmisc)
 
 library(kableExtra)
 library(lubridate)
@@ -55,6 +57,7 @@ library(magrittr)
 
 library(openintro)
 library(openxlsx)
+library(pastecs)
 library(pdftools)
 library(plotly)
 
@@ -115,11 +118,130 @@ h4.date { /* Header 4 - and the author and data headers use this too  */
 
 # Data Tables
 
-### Clean Up CHARGE Raw Data
+```{r CHARGE Reference sheets, echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
+#Loading Reference sheets
 
+#CHARGE
+CHARGE_batches_reviewed<- read_excel('J:\\PM\\ORG-GC\\CHARGE\\CHARGE_Batches__reviewedBA020524.xlsx')
+
+
+
+sheets_to_read <- readxl::excel_sheets("J:\\PM\\ORG-GC\\CHARGE\\CHARGE_Batches__reviewedBA020524.xlsx")
+
+CHARGE_batches_reviewed <- lapply(1:length(sheets_to_read), function(i)readxl::read_excel("J:\\PM\\ORG-GC\\CHARGE\\CHARGE_Batches__reviewedBA020524.xlsx", sheet = sheets_to_read[i]) %>% mutate(tabname = sheets_to_read[i]))
+
+as.numeric(CHARGE_batches_reviewed)
+
+CHARGE_batches_reviewed %>%
+  kbl( longtable = TRUE , 
+    caption = "<center><span style='font-size:30px'>CHARGE: Batches 1-50</span></center>") %>% 
+    kable_styling( stripe_color = "gray!6",
+      bootstrap_options = c("striped", "hover")) %>% 
+      scroll_box(width = "1000px", height = "600px")
+
+data_trans <- CHARGE_batches_reviewed %>% 
+  mutate(across(where(is.character), as.numeric)) 
+
+```
+
+### SN Test 
+Picking Analytes based on SN value
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
-Combined_extractionBatches_Drexel<- read_excel('H:\\nguyet53\\R\\Drexel R\\Combined_extractionBatches_Drexel.xlsx',)
+OCP_SN_selection<- read_excel('C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\OCPPBDE\\CHARGE_B13-19_PBDE-OCP.xlsx')
+
+sample_matrix <- c("Sample", "MatrixBlank")
+
+major_analytes_OCP<-c("HCB Results", 
+                      "trans Chlordane Results", 
+                      "trans-Nonachlor Results",
+                      "pp-DDE Results",
+                      "pp-DDT Results",
+                      "BDE-47 Results",
+                      "BDE-100 Results", 
+                      "BDE-99 Results", 
+                      "BDE-153 Results"
+                      )
+
+
+OCP_SN_selection<-OCP_SN_selection %>%
+  filter(Type == "Sample" | Type == "MatrixBlank") %>% 
+  select(contains(major_analytes_OCP)) %>% 
+  select(contains("SN")) %>% 
+  replace(is.na(.), 0)
+#create data.frame
+
+
+
+OCP_SN_selection<- gather(OCP_SN_selection,"analytes","value")
+
+
+OCP_SN_stats<- OCP_SN_selection %>% 
+  as.tibble() %>% 
+  group_by(analytes) %>% 
+  mutate(across(where(is.factor), as.numeric)) %>% 
+  summarise(across(
+    .cols = everything(), 
+    .fns = list(
+      Min = min, 
+      Q25 = ~quantile(., 0.25), 
+      Median = median, 
+      Q75 = ~quantile(., 0.75), 
+      Max = max,
+      Mean = mean, 
+      StdDev = sd,
+      count = ~n()
+    )))
+
+#PCB
+PCB_SN_selection<- read_excel('C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\PCB\\CHARGE_B13-19_PCB_080924.xlsx')
+
+sample_matrix <- c("Sample", "MatrixBlank")
+
+major_analytes_PCB<-c("PCB 74 Results", 
+                      "PCB-118 Results",
+                      "PCB-153 Results",
+                      "PCB-105 Results", 
+                      "PCB-138 Results",
+                      "PCB-187 Results", 
+                      "PCB-183 Results"
+)
+
+
+PCB_SN_selection<-PCB_SN_selection %>%
+  filter(Type %in% sample_matrix) %>%
+  select(contains(major_analytes_PCB)) %>% 
+  select(contains("SN")) %>%
+  replace(is.na(.), 0)
+#create data.frame
+
+
+PCB_SN_selection<- gather(PCB_SN_selection,"analytes","value")
+
+
+
+PCB_SN_stats<- PCB_SN_selection %>% 
+  group_by(analytes) %>% 
+  mutate(across(where(is.factor), as.numeric)) %>% 
+  summarise(across(
+    .cols = everything(), 
+    .fns = list(
+      Min = min, 
+      Q25 = ~quantile(., 0.25), 
+      Median = median, 
+      Q75 = ~quantile(., 0.75), 
+      Max = max,
+      Mean = mean, 
+      StdDev = sd,
+      count = ~n()
+    )))
+
+write.csv(OCP_SN_stats, "C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\OCPPBDE\\OCPPBDE picked on SN\\OCPPBDE picked on SN_NOT_filtered.csv", row.names=TRUE)
+
+write.csv(PCB_SN_stats, "C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\PCB\\PCB picked on SN\\PCB picked on SN_NOT_filtered.csv", row.names=TRUE)
+```
+
+```{r}
 all_notes_confirmed<- read_excel('H:\\nguyet53\\R\\Drexel R\\Drexel_all_notes_confirmed_2024.xlsx')
 
 colnames(Combined_extractionBatches_Drexel)[colnames(Combined_extractionBatches_Drexel) == "Tooth Powder Weight (mg)"] ="Tooth Powder"
