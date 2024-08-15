@@ -729,7 +729,7 @@ vit_c_palette <- c("2T" = "#FEF1CD",
 
 
 avg_plot1<- max_min_spiked_ocp %>%
-  mutate(value=max_min_spiked_ocp$value * 0.5) %>%
+  mutate(value=max_min_spiked_ocp$value) %>%
   ggplot(aes(x = factor(Batch_num2), y = value)) +
   facet_wrap(~`variable`, scales="free",ncol=1)+
     geom_blank(aes(y = y_min)) +
@@ -814,7 +814,7 @@ max_min_spiked_pcb<- max_min_spiked_pcb %>%
 max_min_spiked_pcb$Batch_num<-as.character(max_min_spiked_pcb$Batch_num)
 
 avg_plot2<- max_min_spiked_pcb %>%
-  mutate(value=max_min_spiked_pcb$value *0.732) %>%
+  mutate(value=max_min_spiked_pcb$value) %>%
   ggplot(aes(x = factor(Batch_num2), y = value)) + 
   facet_wrap(~variable, scales="free",ncol=1)+
     geom_blank(aes(y = y_min)) +
@@ -1223,4 +1223,298 @@ ggplotly(pcb6)
 
 
 
+```
+
+
+
+# Quality Control (Unspiked) - Plots
+### Concentration across batches: OCP (Unspiked)
+OCP/PBDE  
+```{r ALL unspiked QC OCP plots, echo=FALSE,message=FALSE,warning=FALSE }
+
+OCPPBDE_QC_unspike_mean %>%
+    pivot_longer(-Batch_number) %>%
+    mutate(analytes=fct_relevel(name, "HCB Results")) %>%
+    count(Batch_number, name, wt = value) %>%
+    ggplot(aes(n, name)) +
+    geom_col() +
+    facet_wrap(~Batch_number)+
+    labs(y= "Analytes", x = "Concentration")+
+    ggtitle("Untargetted Pool average concentration - OCP/PBDE") + 
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r Hlines OCP Unspiked, echo=FALSE, message=FALSE, warning=FALSE}
+OCPPBDE_QC_Unspike %>%
+  select(major_analytes_OCP)
+
+#HCB
+mean_hcb<-mean(OCPPBDE_QC_Unspike$`HCB Results`)
+sd_hcb<-sd(OCPPBDE_QC_Unspike$`HCB Results`)
+
+hcb_hline <- data.frame(
+  y = c(mean_hcb, mean_hcb + c(1, -1, 2, -2) * sd_hcb),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+
+#trans Chlordane
+mean_transChlordane<-mean(OCPPBDE_QC_Unspike$`trans Chlordane Results`)
+sd_transChlordane<-sd(OCPPBDE_QC_Unspike$`trans Chlordane Results`)
+
+trans_Chlordane_hline <- data.frame(
+  y = c(mean_transChlordane, mean_transChlordane + c(1, -1, 2, -2) * sd_transChlordane),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+
+#trans-Nonachlor
+mean_trans_Nonachlor<-mean(OCPPBDE_QC_Unspike$`trans-Nonachlor Results`)
+sd_trans_Nonachlor<-sd(OCPPBDE_QC_Unspike$`trans-Nonachlor Results`)
+
+trans_Nonachlor_hline <- data.frame(
+  y = c(mean_trans_Nonachlor, mean_trans_Nonachlor + c(1, -1, 2, -2) * sd_trans_Nonachlor),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+#pp-DDE Results
+mean_pp_DDE<-mean(OCPPBDE_QC_Unspike$`pp-DDE Results`)
+sd_pp_DDE<-sd(OCPPBDE_QC_Unspike$`pp-DDE Results`)
+
+pp_DDE_hline <- data.frame(
+  y = c(mean_pp_DDE, mean_pp_DDE + c(1, -1, 2, -2) * sd_pp_DDE),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+
+
+#pp-DDT Results
+mean_pp_DDT<-mean(OCPPBDE_QC_Unspike$`pp-DDT Results`)
+sd_pp_DDT<-sd(OCPPBDE_QC_Unspike$`pp-DDT Results`)
+
+pp_DDT_hline <- data.frame(
+  y = c(mean_pp_DDT, mean_pp_DDT + c(1, -1, 2, -2) * sd_pp_DDT),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+#BDE-47 Results
+mean_BDE_47<-mean(OCPPBDE_QC_Unspike$`BDE-47 Results`)
+sd_BDE_47<-sd(OCPPBDE_QC_Unspike$`BDE-47 Results`)
+
+BDE_47_hline <- data.frame(
+  y = c(mean_BDE_47, mean_BDE_47 + c(1, -1, 2, -2) * sd_BDE_47),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+#BDE-100 Results
+mean_BDE_100<-mean(OCPPBDE_QC_Unspike$`BDE-100 Results`)
+sd_BDE_100<-sd(OCPPBDE_QC_Unspike$`BDE-100 Results`)
+
+BDE_100_hline <- data.frame(
+  y = c(mean_BDE_100, mean_BDE_100 + c(1, -1, 2, -2) * sd_BDE_100),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+#BDE-99 Results
+mean_BDE_99<-mean(OCPPBDE_QC_Unspike$`BDE-99 Results`)
+sd_BDE_99<-sd(OCPPBDE_QC_Unspike$`BDE-99 Results`)
+
+BDE_99_hline <- data.frame(
+  y = c(mean_BDE_99, mean_BDE_99 + c(1, -1, 2, -2) * sd_BDE_99),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+
+#BDE-153 Results
+mean_BDE_153<-mean(OCPPBDE_QC_Unspike$`BDE-153 Results`)
+sd_BDE_153<-sd(OCPPBDE_QC_Unspike$`BDE-153 Results`)
+
+BDE_153_hline <- data.frame(
+  y = c(mean_BDE_153, mean_BDE_153 + c(1, -1, 2, -2) * sd_BDE_153),
+  Descriptive_Statistics = c("Running Average", "+1*SD ", "-1*SD ", "+2*SD", "-2*SD"),
+  linetype = c("solid", "dashed", "dashed", "dotted", "dotted")
+)
+```
+
+```{r UNSPIKED OCP: HCB plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot11<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `HCB Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = hcb_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : HCB distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+
+```
+
+```{r UNSPIKED OCP: Transchlordane plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot22<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `trans Chlordane Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = trans_Chlordane_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : trans.Chlordane distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: trans-Nonachlor plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot33<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `trans-Nonachlor Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = trans_Nonachlor_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : trans-Nonachlor distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: pp-DDE Results plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot44<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `pp-DDE Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = pp_DDE_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : pp-DDE distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: pp-DDT plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot55<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `pp-DDT Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = pp_DDT_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : pp-DDT distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: BDE-47 plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot66<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `BDE-47 Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = BDE_47_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : BDE-47 distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: BDE-100 plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot77<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `BDE-100 Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = BDE_100_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : BDE-100 distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+```{r UNSPIKED OCP: BDE-99 plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot88<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `BDE-99 Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = BDE_99_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : BDE-99 distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+
+```{r UNSPIKED OCP: BDE-153 plot - Running average distribution, echo=FALSE,message=FALSE,warning=FALSE}
+
+avg_plot99<-ggplot(OCPPBDE_QC_Unspike, aes(x = factor(Batch_num), y = `BDE-153 Results`, group=`Batch_num`)) + 
+  geom_line(aes(color=`Batch_number`)) + 
+  geom_point(aes(color=`Batch_number`)) + 
+  guides(color="none")+
+  geom_hline(data = BDE_153_hline, aes(yintercept = y , linetype = `linetype`), color = "black", size=0.5)+
+   theme(axis.title.y = element_text(size=10, face="bold", colour = "black"),
+        axis.text.y = element_text(size=10, face="bold", colour = "black"),
+        strip.text = element_text(face = "bold", size=10))+
+  labs(y="Concentration", x = "Batch number",linetype = "Control Chart" )+
+  ggtitle("Unspiked QC : BDE-153 distribution")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_linetype_manual(values = c(1,2,3),
+                        labels = c("+/- 1 SD", "+/- 2 SD", "Running Average"))
+  
+```
+
+### Shewhart Chart: OCP (Unspiked)
+```{r Display Unspiked OCP Shewhart Chart, echo=FALSE,message=FALSE,warning=FALSE}
+avg_plot11 
+avg_plot22
+avg_plot33
+avg_plot44
+avg_plot55
+avg_plot66
+avg_plot77
+avg_plot88
+avg_plot99
 ```
