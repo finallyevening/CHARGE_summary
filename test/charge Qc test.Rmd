@@ -154,7 +154,7 @@ all_notes_confirmed %>%
 ### SN Test 
 Picking Analytes based on SN value
 
-```{r echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
+```{r echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 OCPPBDE<- read_excel('C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\OCPPBDE\\CHARGE_B13-19_PBDE-OCP.xlsx')
 
 OCPPBDE[OCPPBDE == NA] <- 0
@@ -252,6 +252,52 @@ write.csv(OCP_SN_stats, "C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\
 write.csv(PCB_SN_stats, "C:\\Users\\nguyet53\\Documents\\GitHub\\CHARGE_summary\\PCB\\PCB picked on SN\\PCB picked on SN_NOT_filtered.csv", row.names=TRUE)
 ```
 
+# Dividing Analytes by sample Type
+```{r Dividing Analytes by sample Type, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+### Defining variables and changing Types for some QCs
+OCPPBDE_PCB <- list(OCPPBDE, PCB) #Combine OCP and PCB in the same list
+names(OCPPBDE_PCB) <- c('OCPPBDE', 'PCB')
+
+Type <- c("Blank", "Cal","MatrixBlank","MatrixSpike","ResponseCheck","Sample")
+spike_levels<-c("HS","LS")
+
+
+OCPPBDE_PCB<- OCPPBDE_PCB %>%
+  
+  #Change 'P2spikedEx' Type for both OCPPBDE/PCB
+   map(~mutate(., Type=if_else((str_detect(Name, "P2unspikedEx")), "ResponseCheck", Type), #change value of 1 column based on value of another column
+        Type= if_else((str_detect(Name, "P2spikedEx")), "ResponseCheck", Type),
+
+  #Create new "spike_levels" column        
+        spike_levels = ifelse((str_detect(Name, "HSp")), "HS","LS"))) #if Hsp present = return HS, if not return LS
+
+setNames(OCPPBDE_PCB, paste0(names(OCPPBDE_PCB))) |>
+    list2env(envir = .GlobalEnv) #unlist "OCPPBDE_PCB" and store in global environment
+
+
+# Group by sample "Type" list of df
+
+#OCP
+OCPPBDE_Type <- OCPPBDE %>% 
+  pivot_longer(spike_levels) %>%      #pivot the data into longer format
+  group_split(Type) %>%               # split a tibble into a list of tibbles by a grouping column
+  as.list() %>%                       #turn into a better list
+  map(pivot_wider)                    #map to give clean tibbles
+
+#PCB
+PCB_Type <- PCB %>% 
+  pivot_longer(spike_levels) %>%      
+  group_split(Type) %>%              
+  as.list() %>%                       
+  map(pivot_wider)                    
+
+names(PCB_Type)<- Type
+names(OCPPBDE_Type)<- Type
+
+
+```
+
 
 
 
@@ -335,13 +381,25 @@ T_Post_PCB<-PCB %>%
   rename_with(~ str_remove(., " Results"), everything())
 ```
 
+
+
+
 # QC Tables
+
+
+```{r NS values, mean,echo=FALSE,message=FALSE,warning=FALSE}
+
+target_recovery_HS_LS <- c((~ ./0.5*(100)),(~ ./0.05*(100)))
+target_recovery_responseCheck <- c((~ ./0.04*(100)), (~ ./0*(100)))
+
+target_recovery_ocp = (~ ./0.5*(100))
+target_recovery_pcb=(~ ./1*(100))
+```
+
 ```{r QC OCP Spiked - mean,echo=FALSE,message=FALSE,warning=FALSE }
 
-#Filter by samples that are matrix spike
-OCPPBDE_QC_Spiked<-OCPPBDE %>% 
-  group_by(Type) %>% 
-  filter(Type == "MatrixSpike" ) %>% 
+#Spiked QC
+OCPPBDE_QC_Spiked<-OCPPBDE_Type$MatrixSpike %>% 
   mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
   mutate(Sample_name = str_sub(`Data File`,6) ) %>% 
   ungroup() %>%
@@ -358,91 +416,99 @@ OCPPBDE_QC_Spiked$Sample_name<-gsub(".D", "", OCPPBDE_QC_Spiked$Sample_name)
 OCPPBDE_QC_Spiked$Level<- OCPPBDE_QC_Spiked$Level %>% 
                                 replace(is.na(.), 0)
 
-target_recovery_ocp = (~ ./0.5*(100))
 
 OCPPBDE_QC_Spikednotes_OCPPBDE_venn <- OCPPBDE_QC_Spiked
 
-#data frame with target conc %
-OCPPBDE_QC_recovery<-OCPPBDE_QC_Spiked %>% 
-  mutate((across(ends_with('Results'),target_recovery_ocp))) %>% 
-  group_by(Batch_number)
-```
 
-```{r QC OCP Spiked - Recovery Calculation }
-#Spiked QC recovery was calculated with target of 0.5ppm
-target_recovery_ocp = (~ ./0.5*(100))
+#Spiked QC recovery descriptive stats
 
 #calculate target conc % mean grouped by batches
-OCPPBDE_QC_recovery_mean<-OCPPBDE_QC_Spiked %>% 
-  mutate((across(ends_with('Results'), target_recovery_ocp))) %>% 
+OCPPBDE_QC_Spiked_recovery_mean <- OCPPBDE_QC_Spiked %>% 
+  mutate((across(ends_with('Results'), target_recovery_HS_LS))) %>% 
   group_by(Batch_number) %>% 
   summarise_at(vars(major_analytes_OCP),mean) %>% 
   ungroup()
 
-```
 
-
-
-```{r QC OCP Spiked - sd,echo=FALSE,message=FALSE,warning=FALSE }
+#data frame with target conc %
+OCPPBDE_QC_Spiked_recovery <- OCPPBDE_QC_Spiked %>% 
+  mutate(across(ends_with('Results'),target_recovery_ocp))
 
 #Spiked QCs sd
 
 OCPPBDE_QC_recovery_sd<-OCPPBDE_QC_Spiked %>% 
+  mutate((across(ends_with('Results'), target_recovery_HS_LS))) %>% 
   group_by(Batch_number) %>% 
   summarise_at(vars(major_analytes_OCP),sd) %>% 
   ungroup()
 
-OCPPBDE_QC_recovery<-OCPPBDE_QC_recovery %>% 
+
+OCPPBDE_QC_Spiked_recovery<-OCPPBDE_QC_Spiked_recovery %>% 
     rename_with(~ str_remove(., " Results"),everything())
 
-OCPPBDE_QC_recovery_mean<-OCPPBDE_QC_recovery_mean %>% 
+OCPPBDE_QC_Spiked_recovery_mean <-OCPPBDE_QC_Spiked_recovery_mean  %>% 
     rename_with(~ str_remove(., " Results"), everything())
 ```
 
-```{r QC dataframe - Spiked PCB,echo=FALSE,message=FALSE,warning=FALSE }
-target_recovery_pcb=(~ ./1*(100))
 
-PCB_QC_Spiked<-PCB %>% 
-  group_by(Type) %>% 
-  filter(Type == "MatrixSpike" ) %>% 
+```{r QC PCB Spiked - mean,echo=FALSE,message=FALSE,warning=FALSE }
+
+#Spiked QC
+PCB_QC_Spiked<-PCB_Type$MatrixSpike %>% 
   mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
   mutate(Sample_name = str_sub(`Data File`,6) ) %>% 
-    ungroup() %>%
+  ungroup() %>%
   group_by(`Batch_number`) %>% 
   mutate(`Number of samples (n) in the batch` = n()) %>% 
   ungroup()
 
-PCB_QC_Spiked$Batch_number <- gsub("_", "", PCB_QC_Spiked$Batch_number) #remove "_"
-PCB_QC_Spiked$Sample_name<-gsub("_", "", PCB_QC_Spiked$Sample_name)
+#name fixing
+PCB_QC_Spiked$Batch_number <- gsub("_", "", PCB_QC_Spiked$Batch_number) #remove "_" in Batch Number column
+PCB_QC_Spiked$Sample_name<-gsub("_", "", PCB_QC_Spiked$Sample_name) # remove "_" in "Spiked Sample" column
 PCB_QC_Spiked$Sample_name<-gsub(".D", "", PCB_QC_Spiked$Sample_name)
-PCB_QC_Spiked$Level <- PCB_QC_Spiked$Level %>% replace(is.na(.), 0)
 
-PCB_QC_recovery<-PCB_QC_Spiked %>% 
-  mutate((across(ends_with('Results'),target_recovery_pcb))) %>% 
-  group_by(Batch_number)
+#replace NA with 0
+PCB_QC_Spiked$Level<- PCB_QC_Spiked$Level %>% 
+                                replace(is.na(.), 0)
 
-PCB_QC_recovery_mean<-PCB_QC_Spiked %>% 
-  mutate((across(ends_with('Results'),target_recovery_pcb))) %>% 
+
+PCB_QC_Spikednotes_PCB_venn <- PCB_QC_Spiked
+
+
+#Spiked QC recovery descriptive stats
+
+#calculate target conc % mean grouped by batches
+PCB_QC_Spiked_recovery_mean <- PCB_QC_Spiked %>% 
+  mutate((across(ends_with('Results'), target_recovery_HS_LS))) %>% 
   group_by(Batch_number) %>% 
   summarise_at(vars(major_analytes_PCB),mean) %>% 
   ungroup()
 
 
+#data frame with target conc %
+PCB_QC_Spiked_recovery <- PCB_QC_Spiked %>% 
+  mutate(.,((across(ends_with('Results'),target_recovery_pcb))))
+
+#Spiked QCs sd
+
+PCB_QC_recovery_sd<-PCB_QC_Spiked %>% 
+  mutate((across(ends_with('Results'), target_recovery_HS_LS))) %>% 
+  group_by(Batch_number) %>% 
+  summarise_at(vars(major_analytes_PCB),sd) %>% 
+  ungroup()
 
 
-PCB_QC_recovery<-PCB_QC_recovery %>% 
+PCB_QC_Spiked_recovery<-PCB_QC_Spiked_recovery %>% 
+    rename_with(~ str_remove(., " Results"),everything())
+
+PCB_QC_Spiked_recovery_mean <-PCB_QC_Spiked_recovery_mean  %>% 
     rename_with(~ str_remove(., " Results"), everything())
-
-PCB_QC_recovery_mean<-PCB_QC_recovery_mean %>% 
-    rename_with(~ str_remove(., " Results"), everything())
-
 ```
 
 ```{r QC dataframe - Unspiked OCP,echo=FALSE,message=FALSE,warning=FALSE }
-#Unspiked QCs
-OCPPBDE_QC_Unspike<-OCPPBDE %>% 
-  group_by(Type) %>% 
-  filter(Type == "MatrixBlank") %>% 
+
+#Matrix Blank - OPCPPBDE
+OCPPBDE_QC_Unspike<-OCPPBDE_Type$MatrixBlank %>% 
   mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
   mutate(Sample_name = str_sub(`Data File`,7) ) %>% 
   ungroup() %>%
@@ -466,9 +532,8 @@ OCPPBDE_QC_unspike_mean<-OCPPBDE_QC_Unspike %>%
 ```
 
 ```{r QC dataframe - Unspiked PCB,echo=FALSE,message=FALSE,warning=FALSE}
-PCB_QC_Unspike<-PCB %>% 
-  group_by(Type) %>% 
-  filter(Type == "MatrixBlank") %>% 
+#Matrix Blank - PCB
+PCB_QC_Unspike<-PCB_Type$MatrixBlank %>% 
   mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
   mutate(Sample_name = str_sub(`Data File`,6) ) %>% 
   ungroup() %>%
@@ -493,13 +558,68 @@ PCB_QC_unspike_mean<-PCB_QC_Unspike %>%
     rename_with(~ str_remove(., " Results"), everything())
 ```
 
+
+```{r QC dataframe - Response Check OCPPBDE ,echo=FALSE,message=FALSE,warning=FALSE }
+
+#Response Check - OPCPPBDE
+OCPPBDE_QC_ResponseCheck<-OCPPBDE_Type$ResponseCheck %>% 
+  mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
+  mutate(Sample_name = str_sub(`Data File`,7) ) %>% 
+  ungroup() %>%
+  group_by(`Batch_number`) %>% 
+  mutate(`Number of samples (n) in the batch` = n()) %>% 
+  ungroup()
+
+
+OCPPBDE_QC_ResponseCheck$Batch_number <- gsub("_", "", OCPPBDE_QC_ResponseCheck$Batch_number) #remove "_"
+OCPPBDE_QC_ResponseCheck$Sample_name<-gsub("_", "", OCPPBDE_QC_ResponseCheck$Sample_name)
+OCPPBDE_QC_ResponseCheck$Sample_name<-gsub(".D", "", OCPPBDE_QC_ResponseCheck$Sample_name)
+
+
+OCPPBDE_QC_ResponseCheck_mean<-OCPPBDE_QC_ResponseCheck %>% 
+  group_by(Batch_number) %>% 
+  summarise_at(vars(major_analytes_OCP),mean) %>% 
+  ungroup() %>% 
+    rename_with(~ str_remove(., " Results"), everything())
+
+
+```
+
+```{r QC dataframe - Response Check PCB,echo=FALSE,message=FALSE,warning=FALSE }
+
+#Response Check - PCB
+PCB_QC_ResponseCheck<-PCB_Type$ResponseCheck %>% 
+  mutate(Batch_number = str_sub(`Data File`,1,5) ) %>% #keep only : 1st character until 5th character
+  mutate(Sample_name = str_sub(`Data File`,7) ) %>% 
+  ungroup() %>%
+  group_by(`Batch_number`) %>% 
+  mutate(`Number of samples (n) in the batch` = n()) %>% 
+  ungroup()
+
+
+PCB_QC_ResponseCheck$Batch_number <- gsub("_", "", PCB_QC_ResponseCheck$Batch_number) #remove "_"
+PCB_QC_ResponseCheck$Sample_name<-gsub("_", "", PCB_QC_ResponseCheck$Sample_name)
+PCB_QC_ResponseCheck$Sample_name<-gsub(".D", "", PCB_QC_ResponseCheck$Sample_name)
+
+
+PCB_QC_ResponseCheck_mean<-PCB_QC_ResponseCheck %>% 
+  group_by(Batch_number) %>% 
+  summarise_at(vars(major_analytes_PCB),mean) %>% 
+  ungroup() %>% 
+    rename_with(~ str_remove(., " Results"), everything())
+
+
+```
+
+
+
 ### Spiked - OCPs
 
 ```{r Preview QCs - Spiked OCP, echo=FALSE,message=FALSE,warning=FALSE}
 #Spiked
 OCPPBDE_QC_Spiked %>%
   kbl(
-    caption = "<left><span style='font-size:30px'>OCPS: Spiked QCs </span></left>") %>% 
+    caption = "<left><span style='font-size:30px'>OCP/PBDE: Spiked QCs </span></left>") %>% 
   kable_styling( stripe_color = "gray!6",
     bootstrap_options = c("striped", "hover")) %>% 
     scroll_box(width = "800px", height = "500px")
@@ -521,7 +641,7 @@ PCB_QC_Spiked %>%
     scroll_box(width = "800px", height = "500px")
 
 ```
-### Unspiked - OCP
+### Unspiked - OCP/PBDE
 
 ```{r Preview QCs - UnSpiked OCP, echo=FALSE,message=FALSE,warning=FALSE}
 #Unspiked
@@ -536,7 +656,7 @@ OCPPBDE_QC_Unspike %>%
 
 ### Unspiked PCB
 
-```{r Preview QCs - UnSpiked PCB, echo=FALSE,message=FALSE,warning=FALSE}
+```{r Preview QCs - Response Check PCB, echo=FALSE,message=FALSE,warning=FALSE}
 #Unspiked
 PCB_QC_Unspike %>%
     select(-'Data File',) %>% 
@@ -546,6 +666,37 @@ PCB_QC_Unspike %>%
     bootstrap_options = c("striped", "hover")) %>% 
     scroll_box(width = "800px", height = "500px")
 ```
+
+
+### Response Check - OCPPBDE
+
+```{r Preview QCs - UnSpiked OCPPBDE, echo=FALSE,message=FALSE,warning=FALSE}
+#Response Check
+OCPPBDE_QC_ResponseCheck %>%
+    select(-'Data File',) %>% 
+  kbl(
+    caption = "<center><span style='font-size:30px'>OCPPBDE: Response Check</span></center>") %>% 
+  kable_styling( stripe_color = "gray!6",
+    bootstrap_options = c("striped", "hover")) %>% 
+    scroll_box(width = "800px", height = "500px")
+```
+
+### Response Check - PCB
+
+```{r Preview QCs - UnSpiked PCB, echo=FALSE,message=FALSE,warning=FALSE}
+#Response Check
+PCB_QC_ResponseCheck %>%
+    select(-'Data File',) %>% 
+  kbl(
+    caption = "<center><span style='font-size:30px'>PCB: Response Check</span></center>") %>% 
+  kable_styling( stripe_color = "gray!6",
+    bootstrap_options = c("striped", "hover")) %>% 
+    scroll_box(width = "800px", height = "500px")
+```
+
+
+
+
 
 # Quality Control (Spiked) - Plots
 
@@ -601,7 +752,31 @@ PCB_QC_Unspike<-PCB_QC_Unspike %>%
 PCB_QC_Unspike_batch<-data.frame(PCB_QC_Unspike$Batch_num)
 
 
+#Process control plot - Response Check
+#OCP
+OCPPBDE_QC_ResponseCheck<-OCPPBDE_QC_ResponseCheck %>% 
+  mutate(Batch_num=str_sub(`Batch_number`,4,5))
 
+OCPPBDE_QC_ResponseCheck$Batch_num<-as.numeric(OCPPBDE_QC_ResponseCheck$Batch_num)
+
+OCPPBDE_QC_ResponseCheck<-OCPPBDE_QC_ResponseCheck %>%
+  arrange((Batch_num))
+
+OCPPBDE_QC_ResponseCheck_batch<-data.frame(OCPPBDE_QC_ResponseCheck$Batch_num)
+
+#PCB
+PCB_QC_ResponseCheck<-PCB_QC_ResponseCheck %>% 
+  mutate(Batch_num=str_sub(`Batch_number`,4,5))
+
+PCB_QC_ResponseCheck$Batch_num<-as.numeric(PCB_QC_ResponseCheck$Batch_num)
+
+PCB_QC_ResponseCheck<-PCB_QC_ResponseCheck %>%
+  arrange((Batch_num))
+
+PCB_QC_ResponseCheck_batch<-data.frame(PCB_QC_ResponseCheck$Batch_num)
+```
+
+```{r Recovery %, echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
 #Recovery %
 #OCP
 OCPPBDE_QC_recovery_mean<-OCPPBDE_QC_recovery_mean %>% 
